@@ -1,6 +1,10 @@
-## Overview
+# XHunt — AWS Event-Driven Workload Orchestration
 
-xhunt is an independent AWS-based automation platform for running repeatable, asynchronous workflows as containerized batch jobs. While it originated from security automation and continuous recon use cases, the core focus is platform engineering: orchestrating jobs, isolating execution, handling failures, and keeping the system observable and cost-aware.
+XHunt is an independent reference implementation for coordinating asynchronous, containerized workloads on AWS. Python Lambda dispatchers translate DynamoDB stream records and SQS messages into AWS Batch jobs running on Fargate Spot. SAM/CloudFormation defines the shared infrastructure and dispatcher components.
+
+The original workload is authorized security automation. The transferable engineering focus is event-driven orchestration, container execution, infrastructure automation and operational failure handling.
+
+**Status:** Historical implementation; current end-to-end deployment is unverified. Known credential, deployment and failure-handling issues must be resolved before a new deployment. This project is not presented as production-hardened or currently running.
 
 The system is built around:
 - AWS Batch for job scheduling and execution
@@ -10,11 +14,53 @@ The system is built around:
 
 ## Architecture at a glance
 
-- DynamoDB (SubdomainUrls table with Streams enabled) acts as an event source for new work
+- An externally supplied subdomains DynamoDB stream triggers Gau discovery jobs; the internally provisioned SubdomainUrls table stores discovered URL results.
 - Lambda dispatchers (Python) submit AWS Batch jobs in response to events
 - SQS queues decouple stages of work and distribute URLs/tasks across job types
 - AWS Batch JobDefinitions run the tools container image with command overrides (shell scripts under `./tasks/`)
 - CloudWatch Logs capture per-job output via `awslogs` configuration on the Batch JobDefinitions
+
+### Event flow and current limitations
+
+The diagram follows declared resources and inspected code; it is not a deployment verification.
+
+```mermaid
+flowchart LR
+  Input[External subdomains DynamoDB stream] --> GauLambda[Gau dispatcher Lambda]
+  GauLambda --> Batch[AWS Batch job queue]
+  ECR[ECR tools image] --> Compute[Fargate Spot jobs]
+  Batch --> Compute
+  Compute --> Gau[Gau discovery task]
+  Gau --> DalfoxQ[Dalfox SQS queue]
+  Gau -.->|attempted send; IAM grant missing| ArjunQ[Arjun SQS queue]
+  Gau --> WriterQ[Writer SQS queue]
+  DalfoxQ --> DalfoxLambda[Dalfox dispatcher Lambda]
+  ArjunQ --> ArjunLambda[Arjun dispatcher Lambda]
+  DalfoxLambda --> Batch
+  ArjunLambda --> Batch
+  Compute --> Arjun[Arjun task]
+  Arjun --> DalfoxQ
+  Compute --> Dalfox[Dalfox task]
+  WriterQ --> Writer[Writer Lambda]
+  Writer --> Store[SubdomainUrls DynamoDB table]
+  DalfoxQ --> DalfoxDLQ[Dalfox DLQ]
+  ArjunQ --> ArjunDLQ[Arjun DLQ]
+  WriterQ --> WriterDLQ[Writer DLQ]
+  Compute --> Logs[CloudWatch job logs]
+  DalfoxQ --> Alarms[Queue-age and DLQ alarms]
+  ArjunQ --> Alarms
+  WriterQ --> Alarms
+```
+
+The three queues have redrive policies. Declared DLQs do not compensate for handlers that swallow exceptions. Batch submission is distinct from job completion. The dashed Arjun edge marks an implemented send that currently lacks its IAM grant. Alarm notification delivery and end-to-end recovery are unverified.
+
+| Implemented in source | Remaining validation or improvement |
+|---|---|
+| Event dispatchers, Batch/Fargate Spot, queues and DLQs | Retry propagation, idempotent submission and completion reconciliation |
+| SAM infrastructure, Docker tools image and ECR | Current build/deploy validation and runtime credential injection |
+| URL persistence, logs and alarms | Failure-path tests, notification delivery and operational readiness |
+
+Existing deployment scripts contain stale references and require undocumented configuration. Review the source-backed component map and deployment prerequisites before attempting deployment; no deployment command in this repository is claimed as freshly verified.
 
 ## What this demonstrates
 
