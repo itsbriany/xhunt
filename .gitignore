@@ -1,1 +1,10 @@
 .vscode
+
+# Local notification credentials and environment files
+.env
+.env.*
+**/provider-config*.yaml
+**/provider-config*.yml
+!notify/provider-config.yaml
+notify/local/
+__pycache__/

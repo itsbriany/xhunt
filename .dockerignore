@@ -1,0 +1,11 @@
+# Never send repository history or local secrets to the build context.
+.git
+.git/**
+.env
+.env.*
+**/.env
+**/.env.*
+**/provider-config*.yaml
+**/provider-config*.yml
+notify/local/
+**/__pycache__/

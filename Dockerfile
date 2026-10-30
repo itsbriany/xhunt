@@ -80,7 +80,6 @@ RUN python3 -m pip install arjun
 RUN go install github.com/tomnomnom/unfurl@latest
 
 # Finish provisioning scripts
-ADD ./notify/provider-config.yaml /root/.config/notify/provider-config.yaml
-ADD ./notify/dalfox-notify.sh ./notify/dalfox-notify.sh
+COPY ./notify/dalfox-notify.sh ./notify/sqlmap-notify.sh ./notify/
 ADD ./tasks/* ./tasks/
 ADD ./wordlists ./wordlists
