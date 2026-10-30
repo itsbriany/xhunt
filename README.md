@@ -87,6 +87,10 @@ Existing deployment scripts contain stale references and require undocumented co
 - `build-deploy.sh`
   - Builds and pushes the tools image to ECR (`xhunt-tools:latest`)
 
+## Optional notifications
+
+Tracked provider credentials have been retired. Notifications are disabled unless an explicit runtime provider file is supplied. See [notification configuration and offline tests](notify/README.md). Current AWS Batch templates do not provide runtime credential delivery, so this change leaves Batch notifications disabled.
+
 ## Notes
 
 This repository is shared as a representative example of platform-oriented system design applied to batch automation workloads. It is not intended to be a polished or production-ready service. The emphasis is on architectural tradeoffs, event-driven job orchestration, and practical considerations when running asynchronous containerized workloads on AWS Batch (Fargate backend).
